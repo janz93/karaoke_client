@@ -1,5 +1,5 @@
 window.onload = (event) => {
-    const video = document.getElementById("foobar")
+    const video = document.getElementById("localVideo")
     window.AudioContext = window.AudioContext || window.webkitAudioContext;
     context = new AudioContext();
     navigator.mediaDevices.enumerateDevices().then((devices) => {

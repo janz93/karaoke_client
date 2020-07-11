@@ -19,6 +19,13 @@
     <video id="localVideo" autoplay playsinline></video>
     <video id="remoteVideo" autoplay playsinline></video>
 
+    <button type="button" onclick="startKaraokeSong();">startKaraokeSong</button>
+
+    <audio crossorigin="anonymous" controls id="karaokeSong">
+        <source src="https://mdn.github.io/webaudio-examples/audio-basics/outfoxing.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
     <ul class="userlistbox"></ul>
 
     <div>
@@ -35,7 +42,7 @@
     </div>
 
     <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
-    <!-- <script src="js/index.js"></script> -->
+    <script src="js/index.js"></script>
     <script src="js/connection.js"></script>
 </body>
 

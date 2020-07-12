@@ -178,11 +178,20 @@ function invite(evt) {
 
         navigator.mediaDevices.getUserMedia(mediaConstraints)
             .then(function (localStream) {
+                // setup audio
                 context = new AudioContext();
                 var source = context.createMediaStreamSource(localStream);
                 var destination = context.createMediaStreamDestination();
-                source.connect(destination);
+                var distortion = context.createWaveShaper();
 
+                // audio pipeline
+
+                source.connect(distortion).connect(destination);
+
+                distortion.oversample = '4x';
+                distortion.curve = makeDistortionCurve(400);
+                
+                // set altered audio as stream
                 var audioTracks = destination.stream.getAudioTracks();
                 var track = audioTracks[0]; //stream only contains one audio track
                 localStream.addTrack(track);
@@ -192,6 +201,20 @@ function invite(evt) {
             .catch(handleGetUserMediaError);
     }
 }
+
+function makeDistortionCurve(amount) {
+    var k = typeof amount === 'number' ? amount : 50,
+        n_samples = 44100,
+        curve = new Float32Array(n_samples),
+        deg = Math.PI / 180,
+        i = 0,
+        x;
+    for (; i < n_samples; ++i) {
+        x = i * 2 / n_samples - 1;
+        curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+    }
+    return curve;
+};
 
 function handleGetUserMediaError(e) {
     switch (e.name) {

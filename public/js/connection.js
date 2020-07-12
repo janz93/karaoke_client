@@ -10,6 +10,8 @@ var myUsername = null;
 var targetUsername = null;
 var myPeerConnection = null;
 
+var context = null;
+
 var mediaConstraints = {
     audio: true, // We want an audio track
     video: true // ...and we want a video track
@@ -176,8 +178,16 @@ function invite(evt) {
 
         navigator.mediaDevices.getUserMedia(mediaConstraints)
             .then(function (localStream) {
+                context = new AudioContext();
+                var source = context.createMediaStreamSource(localStream);
+                var destination = context.createMediaStreamDestination();
+                source.connect(destination);
+
+                var audioTracks = destination.stream.getAudioTracks();
+                var track = audioTracks[0]; //stream only contains one audio track
+                localStream.addTrack(track);
                 document.getElementById("localVideo").srcObject = localStream;
-                localStream.getTracks().forEach(track => myPeerConnection.addTrack(track, localStream));
+                myPeerConnection.addTrack(track, localStream)
             })
             .catch(handleGetUserMediaError);
     }

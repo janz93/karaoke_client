@@ -19,7 +19,9 @@
     <video id="localVideo" autoplay playsinline></video>
     <video id="remoteVideo" autoplay playsinline></video>
 
-    <button type="button" onclick="startKaraokeSong();">startKaraokeSong</button>
+    <input type="range" id="songcontroll" style="display: none;" min="0" max="100" value="50" oninput="crossfade(this);">
+
+    <button type="button" id="songstart" style="display: none;" onclick="startKaraokeSong();">startKaraokeSong</button>
 
     <audio crossorigin="anonymous" controls id="karaokeSong">
         <source src="https://mdn.github.io/webaudio-examples/audio-basics/outfoxing.mp3" type="audio/mpeg">

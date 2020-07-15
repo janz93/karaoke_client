@@ -9,8 +9,8 @@ var clientID = 0;
 var myUsername = null;
 var targetUsername = null;
 var myPeerConnection = null;
-
-var context = null;
+var micBlog = null;
+var songBlog = null;
 
 var mediaConstraints = {
     audio: true, // We want an audio track
@@ -32,6 +32,19 @@ function setUsername() {
         id: clientID,
         type: "username"
     });
+}
+
+function createSource(source) {
+    var gainNode = context.createGain ? context.createGain() : context.createGainNode();
+    // Connect source to gain.
+    source.connect(gainNode);
+    // Connect gain to destination.
+    gainNode.connect(context.destination);
+
+    return {
+        source: source,
+        gainNode: gainNode
+    };
 }
 
 function connect() {
@@ -173,23 +186,37 @@ function invite(evt) {
             return;
         }
 
+        document.getElementById("songstart").style.display = "block";
+        document.getElementById("songcontroll").style.display = "block";
+
         targetUsername = clickedUsername;
         createPeerConnection();
 
         navigator.mediaDevices.getUserMedia(mediaConstraints)
             .then(function (localStream) {
-                // setup audio
-                context = new AudioContext();
                 var source = context.createMediaStreamSource(localStream);
+                Karaoketrack = context.createMediaElementSource(karaokeSong);
+                // var distortion = context.createWaveShaper();
                 var destination = context.createMediaStreamDestination();
-                var distortion = context.createWaveShaper();
+
+                // volume
+                micBlog = {
+                    source: source,
+                    gainNode: context.createGain()
+                }
+
+                songBlog = {
+                    source: Karaoketrack,
+                    gainNode: context.createGain()
+                }
 
                 // audio pipeline
+                micBlog.source.connect(micBlog.gainNode).connect(destination);
+                songBlog.source.connect(songBlog.gainNode).connect(context.destination);
 
-                source.connect(distortion).connect(destination);
+                songBlog.gainNode.gain.value = 0.5;
 
-                distortion.oversample = '4x';
-                distortion.curve = makeDistortionCurve(400);
+                karaokeSong.play();
                 
                 // set altered audio as stream
                 var audioTracks = destination.stream.getAudioTracks();

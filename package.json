@@ -1,0 +1,25 @@
+{
+  "name": "karaoke_client",
+  "version": "1.0.0",
+  "description": "A karaoke project",
+  "main": "index.js",
+  "scripts": {
+    "prebuild": "node_modules/.bin/tsc",
+    "start": "npm run prebuild && bundle exec rackup",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/janz93/karaoke_client.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/janz93/karaoke_client/issues"
+  },
+  "homepage": "https://github.com/janz93/karaoke_client#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^3.9.7"
+  }
+}

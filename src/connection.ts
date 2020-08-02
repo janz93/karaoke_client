@@ -4,27 +4,26 @@ var myHostname = "karaoke-webrtc-server.herokuapp.com/";
 if (!myHostname) {
     myHostname = "localhost";
 }
-var connection = null;
+var connection: WebSocket | null = null;
 var clientID = 0;
-var myUsername = null;
-var targetUsername = null;
-var myPeerConnection = null;
-var micBlog = null;
-var songBlog = null;
+var myUsername: string | null = null;
+var targetUsername: string | null = null;
+var myPeerConnection: RTCPeerConnection | null = null;
 
 var mediaConstraints = {
     audio: true, // We want an audio track
     video: true // ...and we want a video track
 };
 
-function log(text) {
+function log(text: string) {
     var time = new Date();
 
     console.log("[" + time.toLocaleTimeString() + "] " + text);
 }
 
 function setUsername() {
-    myUsername = document.getElementById("name").value;
+    let input = document.getElementById("name") as HTMLInputElement;
+    myUsername = input.value;
 
     sendToServer({
         name: myUsername,
@@ -32,19 +31,6 @@ function setUsername() {
         id: clientID,
         type: "username"
     });
-}
-
-function createSource(source) {
-    var gainNode = context.createGain ? context.createGain() : context.createGainNode();
-    // Connect source to gain.
-    source.connect(gainNode);
-    // Connect gain to destination.
-    gainNode.connect(context.destination);
-
-    return {
-        source: source,
-        gainNode: gainNode
-    };
 }
 
 function connect() {
@@ -63,8 +49,10 @@ function connect() {
     connection = new WebSocket(serverUrl, "json");
 
     connection.onopen = function (evt) {
-        document.getElementById("text").disabled = false;
-        document.getElementById("send").disabled = false;
+        let textInput = document.getElementById("text") as HTMLInputElement;
+        let sendButton = document.getElementById("send") as HTMLButtonElement;
+        textInput.disabled = false;
+        sendButton.disabled = false;
     };
 
     connection.onerror = function (evt) {
@@ -127,14 +115,14 @@ function connect() {
                 // Unknown message; output to console for debugging.
 
             default:
-                log_error("Unknown message received:");
-                log_error(msg);
+                //log_error("Unknown message received:");
+                //log_error(msg);
         }
 
         // If there's text to insert into the chat buffer, do so now, then
         // scroll the chat panel so that the new text is visible.
 
-        if (text.length) {
+        if (chatBox && text.length) {
             chatBox.innerHTML += text;
             chatBox.scrollTop = chatBox.scrollHeight - chatBox.clientHeight;
         }
@@ -142,108 +130,68 @@ function connect() {
 }
 
 function handleSendButton() {
+    let textInput = document.getElementById("text") as HTMLInputElement;
     var msg = {
-        text: document.getElementById("text").value,
+        text: textInput.value,
         type: "message",
         id: clientID,
         date: Date.now()
     };
     sendToServer(msg);
-    document.getElementById("text").value = "";
+    textInput.value = "";
 }
 
-function sendToServer(msg) {
+function sendToServer(msg: { name?: any; date?: number; id?: number; type: any; text?: any; target?: any; sdp?: any; candidate?: any; }) {
     var msgJSON = JSON.stringify(msg);
     log("Sending '" + msg.type + "' message: " + msgJSON);
-    connection.send(msgJSON);
+    connection?.send(msgJSON);
 }
 
-function handleUserlistMsg(msg) {
+function handleUserlistMsg(msg: { users: any[]; }) {
     var i;
-    var listElem = document.querySelector(".userlistbox");
+    var listElem = document.querySelector(".userlistbox") as HTMLLIElement;
 
     while (listElem.firstChild) {
         listElem.removeChild(listElem.firstChild);
     }
 
-    msg.users.forEach(function (username) {
+    msg.users.forEach(function (username: string) {
         var item = document.createElement("li");
-        item.appendChild(document.createTextNode(username));
-        item.addEventListener("click", invite, false);
+        let button = document.createElement("button");
+        item.appendChild(button);
+        button.appendChild(document.createTextNode(username));
+        button.onclick = invite;
 
         listElem.appendChild(item);
     });
 }
 
-function invite(evt) {
+function invite(ev: MouseEvent) {
+    let target = ev?.target as HTMLButtonElement;
     if (myPeerConnection) {
         alert("You can't start a call because you already have one open!");
     } else {
-        var clickedUsername = evt.target.textContent;
+        var clickedUsername = target.innerText;
 
         if (clickedUsername === myUsername) {
             alert("I'm afraid I can't let you talk to yourself. That would be weird.");
             return;
         }
 
-        document.getElementById("songstart").style.display = "block";
-        document.getElementById("songcontroll").style.display = "block";
-
         targetUsername = clickedUsername;
         createPeerConnection();
 
         navigator.mediaDevices.getUserMedia(mediaConstraints)
             .then(function (localStream) {
-                var source = context.createMediaStreamSource(localStream);
-                Karaoketrack = context.createMediaElementSource(karaokeSong);
-                // var distortion = context.createWaveShaper();
-                var destination = context.createMediaStreamDestination();
-
-                // volume
-                micBlog = {
-                    source: source,
-                    gainNode: context.createGain()
-                }
-
-                songBlog = {
-                    source: Karaoketrack,
-                    gainNode: context.createGain()
-                }
-
-                // audio pipeline
-                micBlog.source.connect(micBlog.gainNode).connect(destination);
-                songBlog.source.connect(songBlog.gainNode).connect(context.destination);
-
-                songBlog.gainNode.gain.value = 0.5;
-
-                karaokeSong.play();
-                
-                // set altered audio as stream
-                var audioTracks = destination.stream.getAudioTracks();
-                var track = audioTracks[0]; //stream only contains one audio track
-                localStream.addTrack(track);
-                document.getElementById("localVideo").srcObject = localStream;
-                myPeerConnection.addTrack(track, localStream)
+                let localVideo = document.getElementById("localVideo") as HTMLVideoElement;
+                localVideo.srcObject = localStream;
+                localStream.getTracks().forEach(track => myPeerConnection?.addTrack(track, localStream));
             })
             .catch(handleGetUserMediaError);
     }
 }
 
-function makeDistortionCurve(amount) {
-    var k = typeof amount === 'number' ? amount : 50,
-        n_samples = 44100,
-        curve = new Float32Array(n_samples),
-        deg = Math.PI / 180,
-        i = 0,
-        x;
-    for (; i < n_samples; ++i) {
-        x = i * 2 / n_samples - 1;
-        curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
-    }
-    return curve;
-};
-
-function handleGetUserMediaError(e) {
+function handleGetUserMediaError(e: { name: any; message: string; }) {
     switch (e.name) {
         case "NotFoundError":
             alert("Unable to open your call because no camera and/or microphone" +
@@ -278,56 +226,58 @@ function createPeerConnection() {
     myPeerConnection.onicecandidate = handleICECandidateEvent;
     myPeerConnection.ontrack = handleTrackEvent;
     myPeerConnection.onnegotiationneeded = handleNegotiationNeededEvent;
-    myPeerConnection.onremovetrack = handleRemoveTrackEvent;
+    myPeerConnection.removeTrack = handleRemoveTrackEvent;
     myPeerConnection.oniceconnectionstatechange = handleICEConnectionStateChangeEvent;
     myPeerConnection.onicegatheringstatechange = handleICEGatheringStateChangeEvent;
     myPeerConnection.onsignalingstatechange = handleSignalingStateChangeEvent;
 }
 
 function handleNegotiationNeededEvent() {
-    myPeerConnection.createOffer().then(function (offer) {
-            return myPeerConnection.setLocalDescription(offer);
+    myPeerConnection?.createOffer().then(function (offer: any) {
+            return myPeerConnection?.setLocalDescription(offer);
         })
         .then(function () {
             sendToServer({
                 name: myUsername,
                 target: targetUsername,
                 type: "video-offer",
-                sdp: myPeerConnection.localDescription
+                sdp: myPeerConnection?.localDescription
             });
         })
         .catch(reportError);
 }
 
-function handleVideoOfferMsg(msg) {
-    var localStream = null;
+function handleVideoOfferMsg(msg: { name: any; sdp: RTCSessionDescriptionInit | undefined; }) {
+    // var localStream: { getTracks: () => any[]; } | null = null;
+    let localStream: MediaStream | null = null;
 
     targetUsername = msg.name;
     createPeerConnection();
 
     var desc = new RTCSessionDescription(msg.sdp);
 
-    myPeerConnection.setRemoteDescription(desc).then(function () {
+    myPeerConnection?.setRemoteDescription(desc).then(function () {
             return navigator.mediaDevices.getUserMedia(mediaConstraints);
         })
-        .then(function (stream) {
+        .then(function (stream: MediaStream) {
             localStream = stream;
-            document.getElementById("localVideo").srcObject = localStream;
+            let localVideo = document.getElementById("localVideo") as HTMLVideoElement;
+            localVideo.srcObject = localStream;
 
-            localStream.getTracks().forEach(track => myPeerConnection.addTrack(track, localStream));
+            localStream.getTracks().forEach((track: any) => myPeerConnection?.addTrack(track, localStream!));
         })
         .then(function () {
-            return myPeerConnection.createAnswer();
+            return myPeerConnection?.createAnswer();
         })
-        .then(function (answer) {
-            return myPeerConnection.setLocalDescription(answer);
+        .then(function (answer: any) {
+            return myPeerConnection?.setLocalDescription(answer);
         })
         .then(function () {
             var msg = {
                 name: myUsername,
                 target: targetUsername,
                 type: "video-answer",
-                sdp: myPeerConnection.localDescription
+                sdp: myPeerConnection?.localDescription
             };
 
             sendToServer(msg);
@@ -335,23 +285,23 @@ function handleVideoOfferMsg(msg) {
         .catch(handleGetUserMediaError);
 }
 
-function handleHangUpMsg(msg) {
+function handleHangUpMsg(msg: any) {
     log("*** Received hang up notification from other peer");
 
     closeVideoCall();
 }
 
-function handleVideoAnswerMsg(msg) {
+function handleVideoAnswerMsg(msg: { sdp: RTCSessionDescriptionInit | undefined; }) {
     log("*** Call recipient has accepted our call");
 
     // Configure the remote description, which is the SDP payload
     // in our "video-answer" message.
 
     var desc = new RTCSessionDescription(msg.sdp);
-    myPeerConnection.setRemoteDescription(desc).catch(reportError);
+    myPeerConnection?.setRemoteDescription(desc).catch(reportError);
 }
 
-function handleICECandidateEvent(event) {
+function handleICECandidateEvent(event: { candidate: any; }) {
     if (event.candidate) {
         sendToServer({
             type: "new-ice-candidate",
@@ -361,20 +311,23 @@ function handleICECandidateEvent(event) {
     }
 }
 
-function handleNewICECandidateMsg(msg) {
+function handleNewICECandidateMsg(msg: { candidate: RTCIceCandidateInit | undefined; }) {
     var candidate = new RTCIceCandidate(msg.candidate);
 
-    myPeerConnection.addIceCandidate(candidate)
+    myPeerConnection?.addIceCandidate(candidate)
         .catch(reportError);
 }
 
-function handleTrackEvent(event) {
-    document.getElementById("remoteVideo").srcObject = event.streams[0];
-    document.getElementById("hangupButton").disabled = false;
+function handleTrackEvent(event: RTCTrackEvent) {
+    let remoteVideo = document.getElementById("remoteVideo") as HTMLVideoElement;
+    let hangupButton = document.getElementById("hangupButton") as HTMLButtonElement;
+    remoteVideo.srcObject = event.streams[0];
+    hangupButton.disabled = false;
 }
 
-function handleRemoveTrackEvent(event) {
-    var stream = document.getElementById("remoteVideo").srcObject;
+function handleRemoveTrackEvent(event: any) {
+    let remoteVideo = document.getElementById("remoteVideo") as HTMLVideoElement;
+    var stream = remoteVideo.srcObject as MediaStream;
     var trackList = stream.getTracks();
 
     if (trackList.length == 0) {
@@ -392,13 +345,11 @@ function hangUpCall() {
 }
 
 function closeVideoCall() {
-    var remoteVideo = document.getElementById("remoteVideo");
-    var localVideo = document.getElementById("localVideo");
+    var remoteVideo = document.getElementById("remoteVideo") as HTMLVideoElement;
+    var localVideo = document.getElementById("localVideo") as HTMLVideoElement;
 
     if (myPeerConnection) {
         myPeerConnection.ontrack = null;
-        myPeerConnection.onremovetrack = null;
-        myPeerConnection.onremovestream = null;
         myPeerConnection.onicecandidate = null;
         myPeerConnection.oniceconnectionstatechange = null;
         myPeerConnection.onsignalingstatechange = null;
@@ -406,11 +357,11 @@ function closeVideoCall() {
         myPeerConnection.onnegotiationneeded = null;
 
         if (remoteVideo.srcObject) {
-            remoteVideo.srcObject.getTracks().forEach(track => track.stop());
+            (remoteVideo.srcObject as MediaStream).getTracks().forEach((track: { stop: () => any; }) => track.stop());
         }
 
         if (localVideo.srcObject) {
-            localVideo.srcObject.getTracks().forEach(track => track.stop());
+            (localVideo.srcObject as MediaStream).getTracks().forEach((track: { stop: () => any; }) => track.stop());
         }
 
         myPeerConnection.close();
@@ -422,12 +373,13 @@ function closeVideoCall() {
     localVideo.removeAttribute("src");
     remoteVideo.removeAttribute("srcObject");
 
-    document.getElementById("hangupButton").disabled = true;
+    let hangupButton = document.getElementById("hangupButton") as HTMLButtonElement;
+    hangupButton.disabled = true;
     targetUsername = null;
 }
 
-function handleICEConnectionStateChangeEvent(event) {
-    switch (myPeerConnection.iceConnectionState) {
+function handleICEConnectionStateChangeEvent(event: any) {
+    switch (myPeerConnection?.iceConnectionState) {
         case "closed":
         case "failed":
         case "disconnected":
@@ -436,15 +388,15 @@ function handleICEConnectionStateChangeEvent(event) {
     }
 }
 
-function handleSignalingStateChangeEvent(event) {
-    switch (myPeerConnection.signalingState) {
+function handleSignalingStateChangeEvent(event: any) {
+    switch (myPeerConnection?.signalingState) {
         case "closed":
             closeVideoCall();
             break;
     }
 }
 
-function handleICEGatheringStateChangeEvent(event) {
+function handleICEGatheringStateChangeEvent(event: any) {
     // Our sample just logs information to console here,
     // but you can do whatever you need.
 }
@@ -453,6 +405,6 @@ function handleICEGatheringStateChangeEvent(event) {
 // in a real-world application, an appropriate (and user-friendly)
 // error message should be displayed.
 
-function reportError(errMessage) {
-    log_error(`Error ${errMessage.name}: ${errMessage.message}`);
+function reportError(errMessage: { name: any; message: any; }) {
+    //log_error(`Error ${errMessage.name}: ${errMessage.message}`);
 }

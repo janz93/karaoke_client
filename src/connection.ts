@@ -7,7 +7,7 @@ if (!myHostname) {
 var connection: WebSocket | null = null;
 var clientID = 0;
 var myUsername: string | null = null;
-var targetUsername: null = null;
+var targetUsername: string | null = null;
 var myPeerConnection: RTCPeerConnection | null = null;
 
 var mediaConstraints = {
@@ -157,18 +157,21 @@ function handleUserlistMsg(msg: { users: any[]; }) {
 
     msg.users.forEach(function (username: string) {
         var item = document.createElement("li");
-        item.appendChild(document.createTextNode(username));
-        item.addEventListener("click", invite, false);
+        let button = document.createElement("button");
+        item.appendChild(button);
+        button.appendChild(document.createTextNode(username));
+        button.onclick = invite;
 
         listElem.appendChild(item);
     });
 }
 
-function invite(evt: { target: { textContent: any; }; }) {
+function invite(ev: MouseEvent) {
+    let target = ev?.target as HTMLButtonElement;
     if (myPeerConnection) {
         alert("You can't start a call because you already have one open!");
     } else {
-        var clickedUsername = evt.target.textContent;
+        var clickedUsername = target.innerText;
 
         if (clickedUsername === myUsername) {
             alert("I'm afraid I can't let you talk to yourself. That would be weird.");
@@ -223,7 +226,7 @@ function createPeerConnection() {
     myPeerConnection.onicecandidate = handleICECandidateEvent;
     myPeerConnection.ontrack = handleTrackEvent;
     myPeerConnection.onnegotiationneeded = handleNegotiationNeededEvent;
-    myPeerConnection.onremovetrack = handleRemoveTrackEvent;
+    myPeerConnection.removeTrack = handleRemoveTrackEvent;
     myPeerConnection.oniceconnectionstatechange = handleICEConnectionStateChangeEvent;
     myPeerConnection.onicegatheringstatechange = handleICEGatheringStateChangeEvent;
     myPeerConnection.onsignalingstatechange = handleSignalingStateChangeEvent;
@@ -315,7 +318,7 @@ function handleNewICECandidateMsg(msg: { candidate: RTCIceCandidateInit | undefi
         .catch(reportError);
 }
 
-function handleTrackEvent(event: { streams: any[]; }) {
+function handleTrackEvent(event: RTCTrackEvent) {
     let remoteVideo = document.getElementById("remoteVideo") as HTMLVideoElement;
     let hangupButton = document.getElementById("hangupButton") as HTMLButtonElement;
     remoteVideo.srcObject = event.streams[0];
@@ -347,8 +350,6 @@ function closeVideoCall() {
 
     if (myPeerConnection) {
         myPeerConnection.ontrack = null;
-        myPeerConnection.onremovetrack = null;
-        myPeerConnection.onremovestream = null;
         myPeerConnection.onicecandidate = null;
         myPeerConnection.oniceconnectionstatechange = null;
         myPeerConnection.onsignalingstatechange = null;

@@ -4,6 +4,8 @@
   "description": "A karaoke project",
   "main": "index.js",
   "scripts": {
+    "prebuild": "node_modules/.bin/tsc",
+    "start": "npm run prebuild && bundle exec rackup",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

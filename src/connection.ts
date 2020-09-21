@@ -15,6 +15,20 @@ var mediaConstraints = {
     video: true // ...and we want a video track
 };
 
+let audioContext: AudioContext;
+let audioSources: MediaStreamAudioSourceNode[] = [];
+let songStream: MediaStream;
+
+(async () => {
+    try {
+        songStream = await fetchSongStream()
+        console.log("success");
+    } catch (e) {
+        console.error(e)
+    }
+})();
+
+
 function log(text: string) {
     var time = new Date();
 
@@ -184,11 +198,65 @@ function invite(ev: MouseEvent) {
         navigator.mediaDevices.getUserMedia(mediaConstraints)
             .then(function (localStream) {
                 let localVideo = document.getElementById("localVideo") as HTMLVideoElement;
-                localVideo.srcObject = localStream;
-                localStream.getTracks().forEach(track => myPeerConnection?.addTrack(track, localStream));
+                console.log(songStream);
+                console.log(audioSources);
+
+                const mixedStreams = mixStreams([localStream, songStream])
+                localVideo.srcObject = mixedStreams;
+
+                // localStream.getTracks().forEach(
+                //     track => myPeerConnection?.addTrack(track, localStream)
+                // );
             })
             .catch(handleGetUserMediaError);
     }
+}
+
+async function fetchSongStream() {
+    audioContext = new AudioContext();
+    var gainNode = audioContext.createGain();
+    gainNode.connect(audioContext.destination);
+    gainNode.gain.value = 0; // don't play for self
+    const response = await fetch( "https://mdn.github.io/webaudio-examples/audio-basics/outfoxing.mp3");
+    const buf = await response.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(buf);
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.start(0, 0 / 1000);
+    source.connect(gainNode);
+    const streamNode = audioContext.createMediaStreamDestination();
+    source.connect(streamNode);
+    const audioElem = new Audio();
+    audioElem.controls = true;
+    document.body.appendChild(audioElem);
+    audioElem.srcObject = streamNode.stream;
+    return streamNode.stream;
+}
+  
+
+function mixStreams(inputStreams:MediaStream[]) {
+    audioContext = new AudioContext();
+    let gainNode = audioContext.createGain();
+    gainNode.connect(audioContext.destination);
+    gainNode.gain.value = 0; // don't hear self
+
+    inputStreams.forEach(function(stream) {
+        if (!stream.getTracks().filter(function(t) {
+                return t.kind === 'audio';
+            }).length) {
+            return;
+        }
+
+        var audioSource = audioContext.createMediaStreamSource(stream);
+        audioSource.connect(gainNode);
+        audioSources.push(audioSource);
+    });
+
+    let audioDestination = audioContext.createMediaStreamDestination();
+    audioSources.forEach(function(audioSource) {
+        audioSource.connect(audioDestination);
+    });
+    return audioDestination.stream;
 }
 
 function handleGetUserMediaError(e: { name: any; message: string; }) {

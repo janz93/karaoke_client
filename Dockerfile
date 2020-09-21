@@ -6,6 +6,8 @@ WORKDIR /myapp
 COPY Gemfile /myapp/Gemfile
 COPY Gemfile.lock /myapp/Gemfile.lock
 RUN bundle install
+COPY package.json /myapp/package.json
+COPY package-lock.json /myapp/package-lock.json
 RUN npm install
 COPY . /myapp
 

@@ -1,7 +1,6 @@
 // for cross browser
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let context;
-let Karaoketrack;
 
 function startKaraokeSong() {
     karaokeSong.play();
@@ -19,8 +18,26 @@ function startKaraokeSong() {
     songBlog.gainNode.gain.value = gain2;
 };
 
+
+async function fetchKaraokeSongStream() {
+    const audioCtx = new AudioContext();
+    return await fetch("https://mdn.github.io/webaudio-examples/audio-basics/outfoxing.mp3")
+    .then(resp => resp.arrayBuffer())
+    .then(buf => audioCtx.decodeAudioData(buf))
+    .then(audioBuffer => {
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        const streamNode = audioCtx.createMediaStreamDestination();
+        source.connect(streamNode);
+        console.log(streamNode.stream)
+        return streamNode.stream;
+    })
+    .catch(console.error);
+}
+
 window.onload = (event) => {
     const karaokeSong = document.getElementById("karaokeSong")
-    context = new AudioContext();
-    Karaoketrack = context.createMediaElementSource(karaokeSong);
+    
+    // var karaokeSongStream = fetchKaraokeSongStream();
+    // console.log(karaokeSongStream)
 };

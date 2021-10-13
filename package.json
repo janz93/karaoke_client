@@ -18,7 +18,9 @@
     "url": "https://github.com/janz93/karaoke_client/issues"
   },
   "homepage": "https://github.com/janz93/karaoke_client#readme",
-  "dependencies": {},
+  "dependencies": {
+    "@types/es6-promise": "^3.3.0"
+  },
   "devDependencies": {
     "typescript": "^3.9.7"
   }

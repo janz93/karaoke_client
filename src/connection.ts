@@ -17,6 +17,7 @@ var mediaConstraints = {
 
 let audioContext: AudioContext;
 let audioSources: MediaStreamAudioSourceNode[] = [];
+let gainNodes: GainNode[] = [];
 let songStream: MediaStream;
 
 (async () => {
@@ -198,10 +199,18 @@ function invite(ev: MouseEvent) {
         navigator.mediaDevices.getUserMedia(mediaConstraints)
             .then(function (localStream) {
                 let localVideo = document.getElementById("localVideo") as HTMLVideoElement;
-                console.log(songStream);
-                console.log(audioSources);
+                console.log('songstream', songStream);
+                console.log('voicestream', localStream);
+                console.log('audioSource before', audioSources, audioSources.length);
+                console.log('gainNodes before', gainNodes, gainNodes.length);
 
                 const mixedStreams = mixStreams([localStream, songStream])
+
+                console.log('audioSource after mixing', audioSources, audioSources.length);
+                console.log('gainNodes after mixing', gainNodes, gainNodes.length);
+                gainNodes[0].gain.value = 0.03;
+                gainNodes[1].gain.value = 0.8;
+                console.log('gainNodes after mixing and value change', gainNodes, gainNodes.length);
                 localVideo.srcObject = mixedStreams;
 
                 // localStream.getTracks().forEach(
@@ -211,6 +220,16 @@ function invite(ev: MouseEvent) {
             .catch(handleGetUserMediaError);
     }
 }
+
+// Fades between 0 (all source 1) and 1 (all source 2)
+// CrossfadeSample.crossfade = function(element) {
+//     var x = parseInt(element.value) / parseInt(element.max);
+//     // Use an equal-power crossfading curve:
+//     var gain1 = Math.cos(x * 0.5*Math.PI);
+//     var gain2 = Math.cos((1.0 - x) * 0.5*Math.PI);
+//     this.ctl1.gainNode.gain.value = gain1;
+//     this.ctl2.gainNode.gain.value = gain2;
+//   };
 
 async function fetchSongStream() {
     audioContext = new AudioContext();
@@ -226,19 +245,16 @@ async function fetchSongStream() {
     source.connect(gainNode);
     const streamNode = audioContext.createMediaStreamDestination();
     source.connect(streamNode);
-    const audioElem = new Audio();
-    audioElem.controls = true;
-    document.body.appendChild(audioElem);
-    audioElem.srcObject = streamNode.stream;
     return streamNode.stream;
 }
-  
+
 
 function mixStreams(inputStreams:MediaStream[]) {
     audioContext = new AudioContext();
     let gainNode = audioContext.createGain();
+    console.log('adioContextDestination', audioContext.destination)
     gainNode.connect(audioContext.destination);
-    gainNode.gain.value = 0; // don't hear self
+    // gainNode.gain.value = 0; // don't hear self
 
     inputStreams.forEach(function(stream) {
         if (!stream.getTracks().filter(function(t) {
@@ -249,10 +265,12 @@ function mixStreams(inputStreams:MediaStream[]) {
 
         var audioSource = audioContext.createMediaStreamSource(stream);
         audioSource.connect(gainNode);
+        gainNodes.push(gainNode);
         audioSources.push(audioSource);
     });
 
     let audioDestination = audioContext.createMediaStreamDestination();
+    console.log('new audioDestination', audioDestination)
     audioSources.forEach(function(audioSource) {
         audioSource.connect(audioDestination);
     });
